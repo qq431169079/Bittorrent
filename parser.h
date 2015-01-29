@@ -1,3 +1,3 @@
 #pragma once
 
-void parse_meta(char *data);
+int parse_meta(char *filename);

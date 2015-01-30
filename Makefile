@@ -1,7 +1,7 @@
 CC=gcc
-CFLAGS=-I. -lcrypto
-DEPS = bencode.h parser.h
-OBJ = main.o bencode.o parser.o
+CFLAGS=-I. -lcrypto -lcurl
+DEPS = bencode.h parser.h tracker.h
+OBJ = main.o bencode.o parser.o tracker.o
 
 %.o: %.c $(DEPS)
 	$(CC) -c -o $@ $< $(CFLAGS)

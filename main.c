@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include "parser.h"
+#include "tracker.h"
 
 
 int main(int argc, char *argv[]){
@@ -10,6 +11,8 @@ int main(int argc, char *argv[]){
 	}
 	//parse the .torrent file
 	metadata *md = parse_meta(argv[1]);
+
+	connect_to_tracker(md);
 
 	//connect to server
 	//connect to peers

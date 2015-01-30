@@ -4,6 +4,8 @@
 #include "parser.h"
 #include "bencode.h"
 
+static const int PATHLENGTH = 1024;	//maximum pathlength
+
 
 char* get_data(char *filename){
 	
@@ -36,34 +38,118 @@ char* get_data(char *filename){
 	return data;
 }
 
-void parse_info(bencode_t *key){
+char* make_string(const char* buff, int len){
+	char* target = malloc(len+1);
+	if(target == NULL){
+		printf("malloc failed\n");
+		return NULL;
+	}
+	strncpy(target,buff,len);
+	target[len] = '\0';	//pad a string terminator
+	//printf("%s\n", target);
+	return target;
+}
+
+
+char *parse_path(bencode_t *list){
+	bencode_t value;
+	const char *buff;
+	int len;
+	char *res = malloc(PATHLENGTH);
+	while(bencode_list_has_next(list)){
+		bencode_list_get_next(list, &value);
+		bencode_string_value(&value, &buff, &len);
+		strncat(res, buff, len);
+		if(bencode_list_has_next(list))
+			strcat(res, "/");
+		else
+			strcat(res, "\0");
+	}
+	//printf("%s\n", res);
+	return res;
+}
+
+
+void parse_single_file(bencode_t *dict, metadata *md, int numFiles){
+	single_file *sf = malloc(sizeof(single_file));
+	bencode_t value;
+	const char *buff;
+	int len;
+	long int val;
+	md->files = realloc(md->files, sizeof(single_file*)*(numFiles+1));
+	
+	while(bencode_dict_has_next(dict)){
+		bencode_dict_get_next(dict, &value, &buff, &len);
+		if(!strncmp(buff, "length", len)){
+			bencode_int_value(&value, &val);
+			sf->length = val;
+		}
+		else if(!strncmp(buff, "path", len)){
+			sf->path = parse_path(&value);
+			//printf("%s\n", sf->path);
+		}
+
+	}
+	//memcpy(&(md->files[numFiles]), sf, sizeof(single_file*));
+	(md->files)[numFiles] = sf;
+}
+
+void parse_multiple_file_list(bencode_t *list, metadata *md){
+	bencode_t value;
+	int numFiles = 0;
+
+	while(bencode_list_has_next(list)){
+		//printf("b\n");
+		bencode_list_get_next(list, &value);
+		parse_single_file(&value, md, numFiles);
+		numFiles++;
+	}
+	//printf("%d\n", numFiles);
+	md->num_files = numFiles;
+}
+
+void parse_info(bencode_t *key, metadata *md){
 	bencode_t value;
 	const char *buff;
 	int len;
 	long int val;
 	while(bencode_dict_has_next(key)){
+		printf("a\n");
 		bencode_dict_get_next(key, &value, &buff, &len);
+
 
 		if(!strncmp(buff, "name", len)){
 			bencode_string_value(&value, &buff, &len);
 			printf("name: %.*s\n", len, buff);
+			md->name = make_string(buff, len);
 		}
-		if(!strncmp(buff, "piece size", len)){
+		else if(!strncmp(buff, "piece length", len)){
 			bencode_int_value(&value, &val);
 			printf("size: %ld\n", val);
+			md->piece_size = val;
 		}
-		if(!strncmp(buff, "pieces", len)){
+		else if(!strncmp(buff, "pieces", len)){
 			bencode_string_value(&value, &buff, &len);
-			printf("pieces: %.*s\n", len, buff);
+			printf("pieces\n");
+			md->pieces = make_string(buff, len);
 		}
-		if(!strncmp(buff, "length", len)){
+		//single_file
+		else if(!strncmp(buff, "length", len)){
 			bencode_int_value(&value, &val);
 			printf("file length: %ld\n", val);
+			md->length = val;
+			md->num_files = 1;
+		}
+		//multiple files
+		else if(!strncmp(buff, "files", len)){
+			bencode_int_value(&value, &val);
+			printf("filessssss\n");
+			parse_multiple_file_list(&value, md);
 		}
 	}
 }
 
-int ben_parse_data(char* data){
+int ben_parse_data(char* data, metadata* md){
 
 	bencode_t ben1, ben2;
 	int len;
@@ -72,20 +158,23 @@ int ben_parse_data(char* data){
 	
 	//check formatting
 	if(bencode_is_dict(&ben1) == 0){
-		printf("Torrent file invalid");
+		printf("Torrent file invalid\n");
 		return -1;
 	}
 
 	while(bencode_dict_has_next(&ben1)){
 		bencode_dict_get_next(&ben1, &ben2, &buff, &len);
+
+		printf("name: %.*s\n", len, buff);
 		
 		if(strncmp(buff, "announce", len) == 0){
 			//set announcer
 			bencode_string_value(&ben2, &buff, &len);
+			md->announce = make_string(buff, len);
 			printf("announce: %.*s\n", len, buff);
 		}
 		else if(!strncmp(buff, "info", len)){
-			parse_info(&ben2);
+			parse_info(&ben2, md);
 		}
 
 	}
@@ -93,9 +182,31 @@ int ben_parse_data(char* data){
 	return 0;
 }
 
-int parse_meta(char *filename){
+metadata *parse_meta(char *filename){
 	char* data = get_data(filename);
-	ben_parse_data(data);
+	//printf("%s\n", data);
+	metadata *md = malloc(sizeof(metadata));
+	if(md == NULL){
+		printf("malloc failed\n");
+		return NULL;
+	}
+	ben_parse_data(data, md);
 	free(data);
-	return 0;
+	return md;
 } 
+
+void free_metadata(metadata *md){
+	int i;
+	if(md == NULL) return;
+	if(md->name != NULL) free(md->name);
+	if(md->announce != NULL) free(md->announce);
+	if(md->pieces != NULL) free(md->pieces);
+	if(md->num_files>1){
+		for(i = 0; i<md->num_files; i++){
+			free((md->files[i])->path);
+			free(md->files[i]);
+		}
+		free(md->files);
+	}
+	free(md);
+}

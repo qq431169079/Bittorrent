@@ -7,6 +7,8 @@
 
 static const int PATHLENGTH = 1024;	//maximum pathlength
 
+int meta_size;	//the size of the metafile in bytes
+
 
 char* get_data(char *filename){
 	
@@ -18,23 +20,23 @@ char* get_data(char *filename){
 	}
 
 	//get the file length
-	int size;
+	//int size;
 	
 	fseek(fp, 0L, SEEK_END);
-	size = ftell(fp);
+	meta_size = ftell(fp);
 	fseek(fp, 0L, SEEK_SET);
-	if(size == -1){
+	if(meta_size == -1){
 		printf("cannot get the size\n");
 		return NULL;
 	}
 
 	//fill the buffer
-	char *data = (char*)malloc(size+1);
+	char *data = (char*)malloc(meta_size+1);
 	long i;
-	for(i = 0; i<size; i++){
+	for(i = 0; i<meta_size; i++){
 		data[i] = fgetc(fp);
 	}
-	data[size] = '\n';
+	data[meta_size] = '\0';
 	fclose(fp);
 	return data;
 }
@@ -45,7 +47,7 @@ char* make_string(const char* buff, int len){
 		printf("malloc failed\n");
 		return NULL;
 	}
-	strncpy(target,buff,len);
+	strncpy(target, buff,len);
 	target[len] = '\0';	//pad a string terminator
 	//printf("%s\n", target);
 	return target;
@@ -109,21 +111,25 @@ void parse_multiple_file_list(bencode_t *list, metadata *md){
 	md->num_files = numFiles;
 }
 
+
+//compute the info hash
 void get_info_hash(bencode_t *info, metadata *md){
 	int len;
-	const char *buff;
+	const char *ren;
+	bencode_dict_get_start_and_len(info, &ren, &len);
 	char* digest = malloc(SHA_DIGEST_LENGTH);
 	SHA_CTX c;
 	
 	SHA1_Init(&c);
-	SHA1_Update(&c, info->str, info->len);
+	SHA1_Update(&c, ren, len);
  	SHA1_Final(digest, &c);
  	
  	md->info_hash = digest;
- 	printf("%s\n", digest);
+ //	printf("%s\n", digest);
 }
 
 
+//parse the info dict of the bencoded file
 void parse_info(bencode_t *key, metadata *md){
 	get_info_hash(key, md);
 	bencode_t value;
@@ -131,7 +137,6 @@ void parse_info(bencode_t *key, metadata *md){
 	int len;
 	long int val;
 	while(bencode_dict_has_next(key)){
-		printf("a\n");
 		bencode_dict_get_next(key, &value, &buff, &len);
 
 
@@ -166,12 +171,13 @@ void parse_info(bencode_t *key, metadata *md){
 	}
 }
 
+//parse a bencoded dict and fill the metadata object
 int ben_parse_data(char* data, metadata* md){
 
 	bencode_t ben1, ben2;
 	int len;
 	const char* buff;
-	bencode_init(&ben1, data, strlen(data));
+	bencode_init(&ben1, data, meta_size);
 	
 	//check formatting
 	if(bencode_is_dict(&ben1) == 0){
@@ -188,7 +194,7 @@ int ben_parse_data(char* data, metadata* md){
 			//set announcer
 			bencode_string_value(&ben2, &buff, &len);
 			md->announce = make_string(buff, len);
-			printf("announce: %.*s\n", len, buff);
+			//printf("announce: %.*s\n", len, buff);
 		}
 		else if(!strncmp(buff, "info", len)){
 			parse_info(&ben2, md);
@@ -199,6 +205,7 @@ int ben_parse_data(char* data, metadata* md){
 	return 0;
 }
 
+//the main parsing method
 metadata *parse_meta(char *filename){
 	char* data = get_data(filename);
 	//printf("%s\n", data);
@@ -212,6 +219,7 @@ metadata *parse_meta(char *filename){
 	return md;
 } 
 
+//free the metadata object
 void free_metadata(metadata *md){
 	int i;
 	if(md == NULL) return;

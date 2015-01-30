@@ -11,6 +11,10 @@ int main(int argc, char *argv[]){
 	//parse the .torrent file
 	metadata *md = parse_meta(argv[1]);
 
+	//connect to server
+	//connect to peers
+
+	/*
 	printf("%s\n", md->name);
 	printf("%s\n", md->pieces);
 	printf("%s\n", md->announce);	
@@ -19,8 +23,7 @@ int main(int argc, char *argv[]){
 	//single_file ** files = md->files;
 	//single_file *f = *files;
 	//printf("%s\n", f->path);	
+	*/
 
-
-	
 	free_metadata(md);
 }

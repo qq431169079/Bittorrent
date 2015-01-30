@@ -3,6 +3,7 @@
 #include <string.h>
 #include "parser.h"
 #include "bencode.h"
+#include <openssl/sha.h>
 
 static const int PATHLENGTH = 1024;	//maximum pathlength
 
@@ -108,7 +109,23 @@ void parse_multiple_file_list(bencode_t *list, metadata *md){
 	md->num_files = numFiles;
 }
 
+void get_info_hash(bencode_t *info, metadata *md){
+	int len;
+	const char *buff;
+	char* digest = malloc(SHA_DIGEST_LENGTH);
+	SHA_CTX c;
+	
+	SHA1_Init(&c);
+	SHA1_Update(&c, info->str, info->len);
+ 	SHA1_Final(digest, &c);
+ 	
+ 	md->info_hash = digest;
+ 	printf("%s\n", digest);
+}
+
+
 void parse_info(bencode_t *key, metadata *md){
+	get_info_hash(key, md);
 	bencode_t value;
 	const char *buff;
 	int len;
@@ -165,7 +182,7 @@ int ben_parse_data(char* data, metadata* md){
 	while(bencode_dict_has_next(&ben1)){
 		bencode_dict_get_next(&ben1, &ben2, &buff, &len);
 
-		printf("name: %.*s\n", len, buff);
+		//printf("name: %.*s\n", len, buff);
 		
 		if(strncmp(buff, "announce", len) == 0){
 			//set announcer
@@ -201,6 +218,7 @@ void free_metadata(metadata *md){
 	if(md->name != NULL) free(md->name);
 	if(md->announce != NULL) free(md->announce);
 	if(md->pieces != NULL) free(md->pieces);
+	if(md->info_hash != NULL) free(md->info_hash);
 	if(md->num_files>1){
 		for(i = 0; i<md->num_files; i++){
 			free((md->files[i])->path);

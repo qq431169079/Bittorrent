@@ -1,5 +1,5 @@
 CC=gcc
-CFLAGS=-I.
+CFLAGS=-I. -lcrypto
 DEPS = bencode.h parser.h
 OBJ = main.o bencode.o parser.o
 

@@ -13,6 +13,7 @@ typedef struct{
 	long int length; //the total size of the file
 	int num_files; //number of files in the torrent
 	single_file** files; //dynamic array of files in multifile torrent
+	char* info_hash; 	//the SHA-1 hash of the info value
 }metadata;
 
 

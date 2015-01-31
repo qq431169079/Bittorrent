@@ -5,7 +5,6 @@
 #include "bencode.h"
 #include <openssl/sha.h>
 
-static const int PATHLENGTH = 1024;	//maximum pathlength
 
 int meta_size;	//the size of the metafile in bytes
 
@@ -58,28 +57,34 @@ char *parse_path(bencode_t *list){
 	bencode_t value;
 	const char *buff;
 	int len;
-	char *res = malloc(PATHLENGTH);
+	int total = 0;
+	char res[180];
+	strcpy(res, "");
 	while(bencode_list_has_next(list)){
 		bencode_list_get_next(list, &value);
 		bencode_string_value(&value, &buff, &len);
+		total+=len;
 		strncat(res, buff, len);
-		if(bencode_list_has_next(list))
+		if(bencode_list_has_next(list)){
 			strcat(res, "/");
-		else
-			strcat(res, "\0");
+			total++;
+		}
 	}
-	//printf("%s\n", res);
-	return res;
+	char *path = malloc(total+1);
+	strcpy(path, res);
+	path[total] = '\0';
+	//printf("%d and %d\n", strlen(res), total);
+	return path;
 }
 
 
 void parse_single_file(bencode_t *dict, metadata *md, int numFiles){
-	single_file *sf = malloc(sizeof(single_file));
+	single_file *sf = (single_file *) malloc(sizeof(single_file));
 	bencode_t value;
 	const char *buff;
 	int len;
 	long int val;
-	md->files = realloc(md->files, sizeof(single_file*)*(numFiles+1));
+	md->files = (single_file **)realloc(md->files, sizeof(single_file*)*(numFiles+1));
 	
 	while(bencode_dict_has_next(dict)){
 		bencode_dict_get_next(dict, &value, &buff, &len);
@@ -94,7 +99,7 @@ void parse_single_file(bencode_t *dict, metadata *md, int numFiles){
 
 	}
 	//memcpy(&(md->files[numFiles]), sf, sizeof(single_file*));
-	(md->files)[numFiles] = sf;
+	md->files[numFiles] = sf;
 }
 
 void parse_multiple_file_list(bencode_t *list, metadata *md){
@@ -117,12 +122,13 @@ void get_info_hash(bencode_t *info, metadata *md){
 	int len;
 	const char *ren;
 	bencode_dict_get_start_and_len(info, &ren, &len);
-	char* digest = malloc(SHA_DIGEST_LENGTH);
+	char* digest = malloc(SHA_DIGEST_LENGTH+1);
 	SHA_CTX c;
 	
 	SHA1_Init(&c);
 	SHA1_Update(&c, ren, len);
  	SHA1_Final(digest, &c);
+ 	digest[SHA_DIGEST_LENGTH] = '\0';
  	
  	md->info_hash = digest;
  //	printf("%s\n", digest);
@@ -142,30 +148,30 @@ void parse_info(bencode_t *key, metadata *md){
 
 		if(!strncmp(buff, "name", len)){
 			bencode_string_value(&value, &buff, &len);
-			printf("name: %.*s\n", len, buff);
+			//printf("name: %.*s\n", len, buff);
 			md->name = make_string(buff, len);
 		}
 		else if(!strncmp(buff, "piece length", len)){
 			bencode_int_value(&value, &val);
-			printf("size: %ld\n", val);
+			//printf("size: %ld\n", val);
 			md->piece_size = val;
 		}
 		else if(!strncmp(buff, "pieces", len)){
 			bencode_string_value(&value, &buff, &len);
-			printf("pieces\n");
+			//printf("pieces\n");
 			md->pieces = make_string(buff, len);
 		}
 		//single_file
 		else if(!strncmp(buff, "length", len)){
 			bencode_int_value(&value, &val);
-			printf("file length: %ld\n", val);
+			//printf("file length: %ld\n", val);
 			md->length = val;
 			md->num_files = 1;
 		}
 		//multiple files
 		else if(!strncmp(buff, "files", len)){
 			bencode_int_value(&value, &val);
-			printf("filessssss\n");
+			//printf("filessssss\n");
 			parse_multiple_file_list(&value, md);
 		}
 	}
@@ -209,7 +215,7 @@ int ben_parse_data(char* data, metadata* md){
 metadata *parse_meta(char *filename){
 	char* data = get_data(filename);
 	//printf("%s\n", data);
-	metadata *md = malloc(sizeof(metadata));
+	metadata *md = (metadata *) malloc(sizeof(metadata));
 	if(md == NULL){
 		printf("malloc failed\n");
 		return NULL;

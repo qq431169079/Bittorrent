@@ -16,7 +16,14 @@ typedef struct{
 	char* info_hash; 	//the SHA-1 hash of the info value
 }metadata;
 
-
+typedef struct{
+	char *failure;
+	long int interval;
+	char *tracker_id;
+	int complete;
+	int incomplete;
+}tracker_message;	//a summery of a message sent by the tracker
 
 metadata *parse_meta(char *filename);
+void *tracker_info();
 void free_metadata(metadata *md);

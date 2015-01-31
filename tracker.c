@@ -155,10 +155,11 @@ void connect_to_tracker(metadata *md){
 
 	//printf("%s\n", tm->tracker_id);
 	//printf("%li\n", tm->interval);
+	//TODO: run the thread
 
 
 	free(uri);
-	free(prefix);
+	//free(prefix);
 }
 
 

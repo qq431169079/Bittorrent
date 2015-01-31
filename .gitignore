@@ -1,3 +1,4 @@
+/torrent
 /bencode.o
 /decode.o
 /encode.o

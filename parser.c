@@ -323,25 +323,32 @@ void parse_tracker_message(char *message, tracker_message *tm, size_t size){
 	while(bencode_dict_has_next(&ben1)){
 		bencode_dict_get_next(&ben1, &ben2, &buff, &len);
 		if(!strncmp(buff, "failure reason", len)){
+			//printf("a\n");
 			bencode_string_value(&ben2, &buff, &len);
 			tm->failure_reason = make_string(buff, len);
 		}
 		else if(!strncmp(buff, "interval", len)){
+			//printf("b\n");
 			bencode_int_value(&ben2, &val);
 			tm->interval = val;
+			//printf("%li\n", val);
 		}
 		else if(!strncmp(buff, "tracker id", len)){
+			//printf("c\n");
 			bencode_string_value(&ben2, &buff, &len);
 			tm->tracker_id = make_string(buff, len);
 		}
 		else if(!strncmp(buff, "complete", len)){
+			//printf("d\n");
 			bencode_int_value(&ben2, &val);
 			tm->complete = val;
 		}
 		else if(!strncmp(buff, "incomplete", len)){
+			//printf("e\n");
 			bencode_int_value(&ben2, &val);
 			tm->incomplete = val;
 		}else if(!strncmp(buff, "peers", len)){
+			//printf("f\n");
 			parse_peers(&ben2, tm);
 		}
 	}
@@ -351,6 +358,7 @@ void parse_tracker_message(char *message, tracker_message *tm, size_t size){
 tracker_message *get_tracker_message(char *message, size_t size){
 	tracker_message *tm = (tracker_message*) malloc(sizeof(tracker_message));
 	parse_tracker_message(message, tm, size);
+	return tm;
 };
 
 

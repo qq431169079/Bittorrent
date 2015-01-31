@@ -120,8 +120,15 @@ void connect_to_tracker(metadata *md){
 
 	res = curl_easy_perform(curl);
 	curl_easy_cleanup(curl);
-	printf("%s\n", output.buffer);	
+	//printf("%s\n", output.buffer);
+
+	//invokes a method from parser.h
+	tracker_message *tm = get_tracker_message(output.buffer, output.size);	
 	//printf("%d\n", output.size);
+
+	//printf("%s\n", tm->tracker_id);
+	printf("%li\n", tm->interval);
+
 
 	free(uri);
 	free(prefix);

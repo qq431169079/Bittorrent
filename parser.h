@@ -34,4 +34,6 @@ typedef struct{
 
 metadata *parse_meta(char *filename);
 tracker_message *get_tracker_message(char *message, size_t size);
+
 void free_metadata(metadata *md);
+void free_tracker_message(tracker_message *tm);

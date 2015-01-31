@@ -6,7 +6,7 @@
 #include <openssl/sha.h>
 
 
-const static int BYTES_PER_IP = 6;
+const static int BYTES_PER_PEER_INFO = 6;
 
 int meta_size;	//the size of the metafile in bytes
 
@@ -256,6 +256,7 @@ void parse_single_peer(bencode_t *peer, tracker_message *tm, int numPeers){
 	
 	while(bencode_dict_has_next(peer)){
 		bencode_dict_get_next(peer, &value, &buff, &len);
+
 		if(!strncmp(buff, "peer id", len)){
 			bencode_string_value(&value, &buff, &len);
 			p->peer_id = make_string(buff, len);
@@ -265,22 +266,40 @@ void parse_single_peer(bencode_t *peer, tracker_message *tm, int numPeers){
 			p->port = val;
 		}
 		else if(!strncmp(buff, "peer ip", len)){
-			//TODO: parse IP
+			bencode_string_value(&value, &buff, &len);
+			p->peer_id = make_string(buff, len);	//for now just save the IP as a generic string
 		}
 	}
 }
 
-//invoked when peers received are encoded in a single string
+//invoked when peers received are encoded in a single string. !!UNTESTED!!
 void parse_peers_string(bencode_t *peers, tracker_message *tm){
 	const char *str;
-	int len;
+	int len, i;
 	bencode_string_value(peers, &str, &len);
 	
 	//calculate the number of peers
-	int numPeers = len/BYTES_PER_IP;
+	int numPeers = len/BYTES_PER_PEER_INFO;
 	tm->num_peers = numPeers;
 
-	//TODO: parse IP string
+	if(!numPeers)	//if the number of peers is equal to zero, just return
+		return;
+
+	tm->peers = (peer_t **)malloc(sizeof(peer_t*)*numPeers);
+	char* cur = (char *)str;	//cursor
+	char buffIP[5];	//create two buffers
+	char buffPort[3];
+	buffIP[4] = '\0';	//pad their endings with terminators (yo)
+	buffPort[2] = '\0';
+	for(i = 0; i<numPeers; i++){
+		peer_t *p = (peer_t*)malloc(sizeof(peer_t));
+		memcpy(buffIP, cur, 4);
+		p->peer_ip = strdup(buffIP);
+		cur+=4;	//move the cursor
+		memcpy(buffPort, cur, 2);
+		p->port = atoi(buffPort);
+		tm->peers[i] = p;
+	}
 
 	char *pr;
 

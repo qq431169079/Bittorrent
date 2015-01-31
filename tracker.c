@@ -11,9 +11,12 @@
 const static char *PEER_ID = "-AZ2060-123456789123";	//test id
 const static char *PORT = "6881";		//test port
 
+//instance variables:
 
 tracker_message *last_message;	//the last message recieved from the tracker, serves as point of reference for the tracker thread
 char *prefix;	//the prefix string of all GET requests, generated only once
+char *trackerID;	//the last tracker ID announced
+//TODO: add upload/download stats 
 
 
 typedef struct{
@@ -57,8 +60,10 @@ char *makePair(char *key, const char *val, int last){
 }
 
 
+
+
 //append the information desired to the pregenerated uri prefix
-char *format_uri(char *prefix, metadata *md, char *downl, char *upl, char *ev){
+char *format_uri(metadata *md, char *downl, char *upl, char *ev){
 	char *uploaded_string, *downloaded_string, *event_string;
 
 	uploaded_string = makePair("uploaded", downl, 0);
@@ -71,6 +76,9 @@ char *format_uri(char *prefix, metadata *md, char *downl, char *upl, char *ev){
 	strcat(buff, downloaded_string);
 	//strcat(buff, makePair("compact", uri_encode("0"), 0);
 	strcat(buff, event_string);
+	//add the tracker id if possible
+	if(trackerID != NULL)
+		strcat(buff, trackerID);
 
 	free(uploaded_string);
 	free(downloaded_string);
@@ -108,11 +116,19 @@ char *generate_uri_prefix(metadata *md){
 }
 
 
+void evaluate_message(tracker_message *tm){
+	if(tm->tracker_id != NULL){
+		free(trackerID);
+		trackerID = strdup(tm->tracker_id);
+		//TODO: update other stats
+	}
+
+}
 
 
 void connect_to_tracker(metadata *md){
 	prefix = generate_uri_prefix(md);
-	char *uri = format_uri(prefix, md, "0", "0", "start");
+	char *uri = format_uri(md, "0", "0", "start");
 	printf("%s\n", uri);
 
 	CURL *curl = curl_easy_init();
@@ -146,11 +162,10 @@ void connect_to_tracker(metadata *md){
 }
 
 
-
 //a thread that repeatedly sends a message to the tracker
 void *TrackerThread(void *arg){
 	metadata *md = (metadata *) arg;
-	format_uri(prefix, md, "0", "0", "");
+	format_uri(md, "0", "0", "");
 
 	CURL *curl = curl_easy_init();
 	CURLcode res;
@@ -163,13 +178,15 @@ void *TrackerThread(void *arg){
 
 	while(1){
 		sleep(last_message->interval);
-		char *u = format_uri(prefix, md, "0", "0", "");
+		char *u = format_uri(md, "0", "0", "");
 		curl_easy_setopt(curl, CURLOPT_URL, u);
 		output.buffer = NULL;
 		output.size = 0;
 		res = curl_easy_perform(curl);
-
+		tracker_message *temp = last_message;	//save the pointer so that you can free it
 		last_message = get_tracker_message(output.buffer, output.size);
+		free_tracker_message(temp);
+		//TODO: break conditions
 	}
 	curl_easy_cleanup(curl);
 }

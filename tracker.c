@@ -120,9 +120,9 @@ void connect_to_tracker(metadata *md){
 
 	res = curl_easy_perform(curl);
 	curl_easy_cleanup(curl);
-/*	printf("%s\n", output.buffer);
-*/	
-	printf("%d\n", output.size);
+	printf("%s\n", output.buffer);	
+	//printf("%d\n", output.size);
+	
 	free(uri);
 	free(prefix);
 }

@@ -1,7 +1,13 @@
+
+//Name: Aleksandre Shatberashvili
+
+//additional libraries used: uri.h for URI decoding;
+
 #include <stdio.h>
 #include <stdlib.h>
 #include "parser.h"
 #include "tracker.h"
+
 
 
 int main(int argc, char *argv[]){

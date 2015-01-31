@@ -9,6 +9,28 @@
 int meta_size;	//the size of the metafile in bytes
 
 
+
+//extract a string from a buffer and return it as a malloced pointer
+char* make_string(const char* buff, int len){
+	char* target = malloc(len+1);
+	if(target == NULL){
+		printf("malloc failed\n");
+		return NULL;
+	}
+	strncpy(target, buff,len);
+	target[len] = '\0';	//pad a string terminator
+	//printf("%s\n", target);
+	return target;
+}
+
+
+
+/*
+ * parsing metadata
+ */
+
+
+
 char* get_data(char *filename){
 	
 	//open the file
@@ -39,19 +61,6 @@ char* get_data(char *filename){
 	fclose(fp);
 	return data;
 }
-
-char* make_string(const char* buff, int len){
-	char* target = malloc(len+1);
-	if(target == NULL){
-		printf("malloc failed\n");
-		return NULL;
-	}
-	strncpy(target, buff,len);
-	target[len] = '\0';	//pad a string terminator
-	//printf("%s\n", target);
-	return target;
-}
-
 
 char *parse_path(bencode_t *list){
 	bencode_t value;
@@ -224,6 +233,102 @@ metadata *parse_meta(char *filename){
 	free(data);
 	return md;
 } 
+
+
+/*
+ * parsing tracker messages
+ */
+
+void parse_single_peer(bencode_t *peer, tracker_message *tm, int numPeers){
+	peer_t *p = (peer_t *) malloc(sizeof(peer_t));
+	bencode_t value;
+	const char *buff;
+	int len;
+	long int val;
+	tm->peers = (peer_t **)realloc(tm->peers, sizeof(peer_t*)*(numPeers+1));
+	
+	while(bencode_dict_has_next(peer)){
+		bencode_dict_get_next(peer, &value, &buff, &len);
+		if(!strncmp(buff, "peer id", len)){
+			bencode_string_value(&value, &buff, &len);
+			p->peer_id = make_string(buff, len);
+		}
+		else if(!strncmp(buff, "", len)){
+			//printf("%s\n", sf->path);
+		}
+
+	}
+
+	tm->peers[numPeers] = p;
+}
+
+
+//determine how the peers are encoded and parse them accordingly
+void parse_peers(bencode_t *peers, tracker_message *tm){
+	int len, numPeers;
+	const char *buff;
+	long int val;
+	bencode_t value;
+
+	//peer list case
+	if(bencode_is_list(peers)){
+		while(bencode_list_has_next(peers)){
+			bencode_list_get_next(peers, &value);
+			parse_single_peer(&value, tm, numPeers);
+			numPeers++;
+		}
+	}
+	//peer string case
+	else{
+
+	}
+
+	tm->num_peers = numPeers;
+
+}
+
+
+void parse_tracker_message(char *message, tracker_message *tm, size_t size){
+	bencode_t ben1, ben2;
+	int len;
+	const char* buff;
+	long int val;
+	bencode_init(&ben1, message, size);
+	
+	while(bencode_dict_has_next(&ben1)){
+		bencode_dict_get_next(&ben1, &ben2, &buff, &len);
+		if(!strncmp(buff, "failure reason", len)){
+			bencode_string_value(&ben2, &buff, &len);
+			tm->failure_reason = make_string(buff, len);
+		}
+		else if(!strncmp(buff, "interval", len)){
+			bencode_int_value(&ben2, &val);
+			tm->interval = val;
+		}
+		else if(!strncmp(buff, "tracker id", len)){
+			bencode_string_value(&ben2, &buff, &len);
+			tm->tracker_id = make_string(buff, len);
+		}
+		else if(!strncmp(buff, "complete", len)){
+			bencode_int_value(&ben2, &val);
+			tm->complete = val;
+		}
+		else if(!strncmp(buff, "incomplete", len)){
+			bencode_int_value(&ben2, &val);
+			tm->incomplete = val;
+		}else if(!strncmp(buff, "peers", len)){
+			parse_peers(&ben2, tm);
+		}
+	}
+}
+
+
+tracker_message *get_tracker_message(char *message, size_t size){
+	tracker_message *tm = (tracker_message*) malloc(sizeof(tracker_message));
+	parse_tracker_message(message, tm, size);
+};
+
+
 
 //free the metadata object
 void free_metadata(metadata *md){

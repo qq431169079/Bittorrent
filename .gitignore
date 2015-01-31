@@ -1,0 +1,6 @@
+/bencode.o
+/decode.o
+/encode.o
+/main.o
+/parser.o
+/tracker.o

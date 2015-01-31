@@ -17,13 +17,21 @@ typedef struct{
 }metadata;
 
 typedef struct{
-	char *failure;
+	char* peer_id;
+	char* peer_ip;
+	int port;
+}peer_t;
+
+typedef struct{
+	char *failure_reason;
 	long int interval;
 	char *tracker_id;
 	int complete;
 	int incomplete;
+	int num_peers;
+	peer_t** peers;
 }tracker_message;	//a summery of a message sent by the tracker
 
 metadata *parse_meta(char *filename);
-void *tracker_info();
+tracker_message *get_tracker_message(char *message, size_t size);
 void free_metadata(metadata *md);

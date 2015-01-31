@@ -4,3 +4,4 @@
 /main.o
 /parser.o
 /tracker.o
+/decode.o

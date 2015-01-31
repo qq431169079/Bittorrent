@@ -6,6 +6,8 @@
 #include <openssl/sha.h>
 
 
+const static int BYTES_PER_IP = 6;
+
 int meta_size;	//the size of the metafile in bytes
 
 
@@ -27,6 +29,7 @@ char* make_string(const char* buff, int len){
 
 /*
  * parsing metadata
+ *
  */
 
 
@@ -236,7 +239,9 @@ metadata *parse_meta(char *filename){
 
 
 /*
+ *
  * parsing tracker messages
+ *
  */
 
 void parse_single_peer(bencode_t *peer, tracker_message *tm, int numPeers){
@@ -253,13 +258,28 @@ void parse_single_peer(bencode_t *peer, tracker_message *tm, int numPeers){
 			bencode_string_value(&value, &buff, &len);
 			p->peer_id = make_string(buff, len);
 		}
-		else if(!strncmp(buff, "", len)){
-			//printf("%s\n", sf->path);
+		else if(!strncmp(buff, "peer ip", len)){
+			//TODO: parse ip
 		}
-
+		else if(!strncmp(buff, "port", len)){
+			bencode_int_value(&value, &val);
+			p->port = val;
+		}
 	}
+}
 
-	tm->peers[numPeers] = p;
+
+void parse_peers_string(bencode_t *peers, tracker_message *tm){
+	const char *str;
+	int len;
+	bencode_string_value(peers, &str, &len);
+	
+	int numPeers = len/BYTES_PER_IP;
+	tm->num_peers = numPeers;
+
+
+	char *pr;
+
 }
 
 
@@ -280,7 +300,7 @@ void parse_peers(bencode_t *peers, tracker_message *tm){
 	}
 	//peer string case
 	else{
-
+		parse_peers_string(peers, tm);
 	}
 
 	tm->num_peers = numPeers;
@@ -328,6 +348,10 @@ tracker_message *get_tracker_message(char *message, size_t size){
 	parse_tracker_message(message, tm, size);
 };
 
+
+/*
+ * cleanup
+ */
 
 
 //free the metadata object

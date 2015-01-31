@@ -244,6 +244,8 @@ metadata *parse_meta(char *filename){
  *
  */
 
+
+//parse bencode_t containing a single dict
 void parse_single_peer(bencode_t *peer, tracker_message *tm, int numPeers){
 	peer_t *p = (peer_t *) malloc(sizeof(peer_t));
 	bencode_t value;
@@ -258,25 +260,27 @@ void parse_single_peer(bencode_t *peer, tracker_message *tm, int numPeers){
 			bencode_string_value(&value, &buff, &len);
 			p->peer_id = make_string(buff, len);
 		}
-		else if(!strncmp(buff, "peer ip", len)){
-			//TODO: parse ip
-		}
 		else if(!strncmp(buff, "port", len)){
 			bencode_int_value(&value, &val);
 			p->port = val;
 		}
+		else if(!strncmp(buff, "peer ip", len)){
+			//TODO: parse IP
+		}
 	}
 }
 
-
+//invoked when peers received are encoded in a single string
 void parse_peers_string(bencode_t *peers, tracker_message *tm){
 	const char *str;
 	int len;
 	bencode_string_value(peers, &str, &len);
 	
+	//calculate the number of peers
 	int numPeers = len/BYTES_PER_IP;
 	tm->num_peers = numPeers;
 
+	//TODO: parse IP string
 
 	char *pr;
 
@@ -292,20 +296,21 @@ void parse_peers(bencode_t *peers, tracker_message *tm){
 
 	//peer list case
 	if(bencode_is_list(peers)){
+		//parse each item in the list
 		while(bencode_list_has_next(peers)){
 			bencode_list_get_next(peers, &value);
 			parse_single_peer(&value, tm, numPeers);
 			numPeers++;
 		}
+		tm->num_peers = numPeers;
 	}
 	//peer string case
 	else{
 		parse_peers_string(peers, tm);
 	}
 
-	tm->num_peers = numPeers;
-
 }
+
 
 
 void parse_tracker_message(char *message, tracker_message *tm, size_t size){
@@ -370,4 +375,22 @@ void free_metadata(metadata *md){
 		free(md->files);
 	}
 	free(md);
+}
+
+//free the tracker message object
+void free_tracker_message(tracker_message *tm){
+	if(tm == NULL) return;
+	if(tm->failure_reason != NULL) free(tm->failure_reason);
+	if(tm->tracker_id != NULL) free(tm->tracker_id);
+	if(tm->num_peers>0){
+		int i;
+		for(i = 0; i<tm->num_peers; i++){
+			peer_t *p = tm->peers[i];
+			free(p->peer_id);
+			free(p->peer_ip);
+			free(p);
+		}
+		free(tm->peers);
+	}
+	free(tm);
 }

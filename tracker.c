@@ -7,8 +7,8 @@
 #include "uri.h"
 
 
-const static char *PEER_ID = "-AZ2060-123456789123";
-const static char *PORT = "6881";
+const static char *PEER_ID = "-AZ2060-123456789123";	//test id
+const static char *PORT = "6881";		//test port
 
 typedef struct{
 	char * buffer;
@@ -122,7 +122,7 @@ void connect_to_tracker(metadata *md){
 	curl_easy_cleanup(curl);
 	printf("%s\n", output.buffer);	
 	//printf("%d\n", output.size);
-	
+
 	free(uri);
 	free(prefix);
 }

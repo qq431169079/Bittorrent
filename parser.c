@@ -4,6 +4,7 @@
 #include "parser.h"
 #include "bencode.h"
 #include <openssl/sha.h>
+#include <pthread.h>
 
 
 const static int BYTES_PER_PEER_INFO = 6;

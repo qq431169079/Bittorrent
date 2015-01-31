@@ -5,15 +5,25 @@
 #include "parser.h"
 #include "tracker.h"
 #include "uri.h"
+#include <pthread.h>
 
 
 const static char *PEER_ID = "-AZ2060-123456789123";	//test id
 const static char *PORT = "6881";		//test port
 
+
+tracker_message *last_message;	//the last message recieved from the tracker, serves as point of reference for the tracker thread
+char *prefix;	//the prefix string of all GET requests, generated only once
+
+
 typedef struct{
 	char * buffer;
 	size_t size;
 } BufferStruct;
+
+typedef struct{
+	char *tracker_id;
+}tracker_info;
 
 
 static size_t httpsCallback(void *ptr, size_t size, size_t nmemb, void *data){
@@ -30,6 +40,8 @@ static size_t httpsCallback(void *ptr, size_t size, size_t nmemb, void *data){
 }
 
 
+
+//formats a key-value pair, adds a & unless specified otherwise
 char *makePair(char *key, const char *val, int last){
 	char *value = uri_encode(val);
 	//char *value = val;
@@ -99,8 +111,7 @@ char *generate_uri_prefix(metadata *md){
 
 
 void connect_to_tracker(metadata *md){
-
-	char *prefix = generate_uri_prefix(md);
+	prefix = generate_uri_prefix(md);
 	char *uri = format_uri(prefix, md, "0", "0", "start");
 	printf("%s\n", uri);
 
@@ -127,9 +138,38 @@ void connect_to_tracker(metadata *md){
 	//printf("%d\n", output.size);
 
 	//printf("%s\n", tm->tracker_id);
-	printf("%li\n", tm->interval);
+	//printf("%li\n", tm->interval);
 
 
 	free(uri);
 	free(prefix);
+}
+
+
+
+//a thread that repeatedly sends a message to the tracker
+void *TrackerThread(void *arg){
+	metadata *md = (metadata *) arg;
+	format_uri(prefix, md, "0", "0", "");
+
+	CURL *curl = curl_easy_init();
+	CURLcode res;
+
+	BufferStruct output;
+
+	curl_easy_setopt(curl, CURLOPT_HTTPGET, 1L);
+    curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, httpsCallback);
+	curl_easy_setopt(curl, CURLOPT_WRITEDATA, (void *)&output);
+
+	while(1){
+		sleep(last_message->interval);
+		char *u = format_uri(prefix, md, "0", "0", "");
+		curl_easy_setopt(curl, CURLOPT_URL, u);
+		output.buffer = NULL;
+		output.size = 0;
+		res = curl_easy_perform(curl);
+
+		last_message = get_tracker_message(output.buffer, output.size);
+	}
+	curl_easy_cleanup(curl);
 }
